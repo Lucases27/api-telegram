@@ -14,8 +14,11 @@
   "description": "",
   "dependencies": {
     "axios": "^1.13.6",
+    "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "knex": "^3.1.0",
+    "sqlite3": "^5.1.7",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
