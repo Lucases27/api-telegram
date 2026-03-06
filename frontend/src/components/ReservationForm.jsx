@@ -26,13 +26,13 @@ export default function ReservationForm({ reload, editReservation, cancelEdit })
     e.preventDefault();
     if (!restaurantId || !name || !date) return alert("Completa todos los campos");
 
+    const payload = { restaurantId: Number(restaurantId), name, date };
+
     if (id) {
-      // actualizar
-      await updateReservation(id, { restaurantId, name, date });
+      await updateReservation(id, payload);
       alert("Reserva actualizada!");
     } else {
-      // crear
-      await createReservation({ restaurantId, name, date });
+      await createReservation(payload);
       alert("Reserva creada!");
     }
 

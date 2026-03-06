@@ -36,26 +36,29 @@ bot.command('reservations', async (ctx) => {
 	try {
 		const res = await axios.get(`${API_URL}/reservations`);
 		if (res.data.length === 0) return ctx.reply('No hay reservas registradas.');
-		const list = res.data.map(r => `#${r.id} - ${r.name} en restaurante ${r.restaurantId} a las ${r.turno}`).join('\n');
+		const list = res.data
+			.map(r => `#${r.id} - ${r.name} en ${r.restaurantName || `restaurante ${r.restaurantId}`} el ${r.date}`)
+			.join('\n');
 		ctx.reply('Reservas registradas:\n' + list);
 	} catch (err) {
 		ctx.reply('Error al obtener reservas.');
 	}
 });
 
-bot.hears(/^\/reserve (\d+) (.+)$/i, async (ctx) => {
-	const restaurantId = parseInt(ctx.match[1]);
-	const name = ctx.match[2];
+bot.hears(/^\/reserve\s+(\d+)\s+(\d{4}-\d{2}-\d{2})\s+(.+)$/i, async (ctx) => {
+	const restaurantId = parseInt(ctx.match[1], 10);
+	const date = ctx.match[2];
+	const name = ctx.match[3];
 	try {
-		const res = await axios.post(`${API_URL}/reservations`, { restaurantId, name });
+		const res = await axios.post(`${API_URL}/reservations`, { restaurantId, name, date });
 		ctx.reply(res.data.message);
 	} catch (err) {
-		ctx.reply('No se pudo crear la reserva. Verifica el restaurante y el formato.');
+		ctx.reply('No se pudo crear la reserva. Verifica el restaurante, la fecha (YYYY-MM-DD) y el formato.');
 	}
 });
 
 bot.command('reserve', async (ctx) => {
-	ctx.reply('Para reservar, envía el comando en el siguiente formato:\n/reserve <restaurantId> <tu_nombre>\nEjemplo: /reserve 1 Juan');
+	ctx.reply('Para reservar, envía:\n/reserve <restaurantId> <YYYY-MM-DD> <tu_nombre>\nEj: /reserve 1 2026-03-05 Lucas');
 });
 
 bot.launch();
@@ -75,12 +78,13 @@ bot.action('show_restaurants', async (ctx) => {
 bot.action('show_reservations', async (ctx) => {
 	try {
 		const res = await axios.get(`${API_URL}/reservations`);
+		await ctx.answerCbQuery();
 		if (res.data.length === 0) {
-			await ctx.answerCbQuery();
 			return ctx.reply('No hay reservas registradas.');
 		}
-		const list = res.data.map(r => `#${r.id} - ${r.name} en restaurante ${r.restaurantId} a las ${r.turno}`).join('\n');
-		await ctx.answerCbQuery();
+		const list = res.data
+			.map(r => `#${r.id} - ${r.name} en ${r.restaurantName || `restaurante ${r.restaurantId}`} el ${r.date}`)
+			.join('\n');
 		ctx.reply('Reservas registradas:\n' + list);
 	} catch (err) {
 		ctx.reply('Error al obtener reservas.');
@@ -89,7 +93,7 @@ bot.action('show_reservations', async (ctx) => {
 
 bot.action('make_reservation', async (ctx) => {
 	await ctx.answerCbQuery();
-	ctx.reply('Para reservar, envía el comando en el siguiente formato:\n/reserve <restaurantId> <tu_nombre>\nEjemplo: /reserve 1 Juan');
+	ctx.reply('Para reservar, envía:\n/reserve <restaurantId> <YYYY-MM-DD> <tu_nombre>\nEj: /reserve 1 2026-03-05 Lucas');
 });
 
 console.log('Bot de Telegram iniciado');
