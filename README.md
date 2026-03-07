@@ -1,65 +1,20 @@
-# API + Bot de Telegram
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-## 🚀 Cómo ejecutar la API
+# Run and deploy your AI Studio app
 
-1. Instala las dependencias:
-   ```bash
-   npm install
-   ```
-2. Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
-   ```env
-   BOT_TOKEN=TU_TOKEN_DE_TELEGRAM
-   PORT=3000
-   ```
-   Reemplaza `TU_TOKEN_DE_TELEGRAM` por el token real de tu bot (obtenido de @BotFather en Telegram).
-3. Inicia la API y el bot juntos:
-   ```bash
-   npm run dev
-   ```
-   Esto levantará tanto la API como el bot de Telegram.
+This contains everything you need to run your app locally.
 
----
+View your app in AI Studio: https://ai.studio/apps/279e9607-fa8a-46dc-a620-ce004f4291ca
 
-## 🧪 Cómo probar la API
+## Run Locally
 
-Puedes usar Postman, Insomnia o cualquier herramienta similar para probar los endpoints:
+**Prerequisites:**  Node.js
 
-- **Listar restaurantes:**
-  - Método: `GET`
-  - URL: `http://localhost:3000/restaurants`
 
-- **Crear reserva:**
-  - Método: `POST`
-  - URL: `http://localhost:3000/reservations`
-  - Body (JSON):
-    ```json
-    {
-      "restaurantId": 1,
-      "name": "Juan"
-    }
-    ```
-
-- **Listar reservas:**
-  - Método: `GET`
-  - URL: `http://localhost:3000/reservations`
-
----
-
-## 🤖 Cómo configurar y usar el bot de Telegram
-
-1. Crea un bot en Telegram hablando con [@BotFather](https://t.me/BotFather) y copia el token que te entrega.
-2. Pega el token en el archivo `.env` en la variable `BOT_TOKEN`.
-3. Inicia el proyecto con `npm run dev`.
-4. Busca tu bot en Telegram y usa los siguientes comandos:
-   - `/start`: Ver mensaje de bienvenida.
-   - `/restaurants`: Ver la lista de restaurantes.
-   - `/reserve`: Ver instrucciones para reservar.
-   - `/reserve <restaurantId> <tu_nombre>`: Crear una reserva (ejemplo: `/reserve 1 Juan`).
-   - `/reservations`: Ver todas las reservas creadas.
-
----
-
-## 📋 Notas
-- La API y el bot funcionan en memoria, no hay base de datos.
-- Puedes modificar el puerto cambiando la variable `PORT` en el archivo `.env`.
-- Si tienes dudas, revisa el archivo `Ejercicio 1.md` para ver los requisitos y ejemplos.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

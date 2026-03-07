@@ -1,0 +1,5 @@
+{
+  "name": "ReservaBot IA",
+  "description": "Sistema de gestión de reservas para restaurantes con Chat IA y Bot de Telegram.",
+  "requestFramePermissions": []
+}
