@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import db from '../src/db.ts';
+import db from '../src/db.js';
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
 const app = express();
@@ -21,12 +21,12 @@ app.get('/api/restaurants', async (req, res) => {
 app.post('/api/reservations', async (req, res) => {
   const { restaurantId, name, date } = req.body;
   if (!restaurantId || !name || !date) {
-    return res.status(400).json({ error: 'Faltan datos requeridos' });
+    res.status(400).json({ error: 'Faltan datos requeridos' }); return;
   }
   try {
     const restaurante = await db('restaurants').where({ id: restaurantId }).first();
     if (!restaurante) {
-      return res.status(400).json({ error: 'Restaurante no encontrado' });
+      res.status(400).json({ error: 'Restaurante no encontrado' }); return;
     }
     const [id] = await db('reservations').insert({ restaurantId, name, date });
     res.json({ message: `Reserva confirmada para ${name} en ${restaurante.name} el ${date}`, id });
@@ -61,7 +61,7 @@ app.get('/api/reservations/:id', async (req, res) => {
       .select('reservations.id', 'reservations.name', 'reservations.date', 'restaurants.name as restaurantName', 'reservations.restaurantId', 'reservations.createdAt')
       .where('reservations.id', id)
       .first();
-    if (!reserva) return res.status(404).json({ error: 'Reserva no encontrada' });
+    if (!reserva) { res.status(404).json({ error: 'Reserva no encontrada' }); return; }
     res.json(reserva);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener la reserva' });
@@ -71,12 +71,12 @@ app.get('/api/reservations/:id', async (req, res) => {
 app.put('/api/reservations/:id', async (req, res) => {
   const { id } = req.params;
   const { restaurantId, name, date } = req.body;
-  if (!restaurantId || !name || !date) return res.status(400).json({ error: 'Faltan datos requeridos' });
+  if (!restaurantId || !name || !date) { res.status(400).json({ error: 'Faltan datos requeridos' }); return; }
   try {
     const reserva = await db('reservations').where({ id }).first();
-    if (!reserva) return res.status(404).json({ error: 'Reserva no encontrada' });
+    if (!reserva) { res.status(404).json({ error: 'Reserva no encontrada' }); return; }
     const restaurante = await db('restaurants').where({ id: restaurantId }).first();
-    if (!restaurante) return res.status(400).json({ error: 'Restaurante no encontrado' });
+    if (!restaurante) { res.status(400).json({ error: 'Restaurante no encontrado' }); return; }
     await db('reservations').where({ id }).update({ restaurantId, name, date });
     res.json({ message: 'Reserva actualizada correctamente' });
   } catch (err) {
@@ -88,7 +88,7 @@ app.delete('/api/reservations/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const reserva = await db('reservations').where({ id }).first();
-    if (!reserva) return res.status(404).json({ error: 'Reserva no encontrada' });
+    if (!reserva) { res.status(404).json({ error: 'Reserva no encontrada' }); return; }
     await db('reservations').where({ id }).del();
     res.json({ message: `Reserva #${id} eliminada` });
   } catch (err) {
@@ -110,11 +110,11 @@ const tools: FunctionDeclaration[] = [
     parameters: {
       type: Type.OBJECT,
       properties: {
-        restaurantId: { type: Type.INTEGER, description: "ID del restaurante." },
+        restaurantName: { type: Type.STRING, description: "Nombre exacto del restaurante (ej. 'Restaurante A')." },
         name: { type: Type.STRING, description: "Nombre de la persona que reserva." },
         date: { type: Type.STRING, description: "Fecha de la reserva en formato YYYY-MM-DD." }
       },
-      required: ["restaurantId", "name", "date"]
+      required: ["restaurantName", "name", "date"]
     }
   },
   {
@@ -135,11 +135,11 @@ const tools: FunctionDeclaration[] = [
       type: Type.OBJECT,
       properties: {
         id: { type: Type.INTEGER, description: "ID de la reserva a actualizar." },
-        restaurantId: { type: Type.INTEGER, description: "Nuevo ID del restaurante." },
+        restaurantName: { type: Type.STRING, description: "Nuevo nombre del restaurante (ej. 'Restaurante A')." },
         name: { type: Type.STRING, description: "Nuevo nombre." },
         date: { type: Type.STRING, description: "Nueva fecha (YYYY-MM-DD)." }
       },
-      required: ["id", "restaurantId", "name", "date"]
+      required: ["id", "restaurantName", "name", "date"]
     }
   },
   {
@@ -157,7 +157,7 @@ const tools: FunctionDeclaration[] = [
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
-  if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
+  if (!message) { res.status(400).json({ error: 'Mensaje requerido' }); return; }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'undefined' || apiKey.length < 10) {
@@ -208,9 +208,14 @@ app.post('/api/chat', async (req, res) => {
               result = await query;
               break;
             case 'update_reservation':
-              const { id: upId, restaurantId: upRestId, name: upName, date: upDate } = call.args as any;
-              await db('reservations').where({ id: upId }).update({ restaurantId: upRestId, name: upName, date: upDate });
-              result = { message: 'Reserva actualizada correctamente' };
+              const { id: upId, restaurantName: upRestName, name: upName, date: upDate } = call.args as any;
+              const restToUpdate = await db('restaurants').where('name', 'like', `%${upRestName}%`).first();
+              if (!restToUpdate) {
+                result = { error: `Restaurante no encontrado con el nombre "${upRestName}"` };
+              } else {
+                await db('reservations').where({ id: upId }).update({ restaurantId: restToUpdate.id, name: upName, date: upDate });
+                result = { message: 'Reserva actualizada correctamente' };
+              }
               break;
             case 'delete_reservation':
               const { id: delId } = call.args as any;
