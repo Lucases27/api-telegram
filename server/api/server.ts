@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import db from '../src/db';
+import db from '../src/db.ts';
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
 const app = express();
