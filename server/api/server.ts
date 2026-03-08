@@ -167,7 +167,7 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-2.5-flash";
     const response = await ai.models.generateContent({
       model,
       contents: message,
@@ -177,82 +177,96 @@ app.post('/api/chat', async (req, res) => {
       }
     });
 
-    let finalResponseText = response.text;
     const functionCalls = response.functionCalls;
 
-    if (functionCalls) {
-      const toolResponses = [];
-      for (const call of functionCalls) {
-        let result;
-        try {
-          switch (call.name) {
-            case 'list_restaurants':
-              result = await db('restaurants').select('*');
-              break;
-            case 'create_reservation':
-              const { restaurantId, name, date } = call.args as any;
-              const restaurante = await db('restaurants').where({ id: restaurantId }).first();
-              if (!restaurante) {
-                result = { error: 'Restaurante no encontrado' };
-              } else {
-                const [id] = await db('reservations').insert({ restaurantId, name, date });
-                result = { message: `Reserva confirmada para ${name} en ${restaurante.name} el ${date}`, id };
-              }
-              break;
-            case 'list_reservations':
-              const { search, date: searchDate } = call.args as any;
-              let query = db('reservations').join('restaurants', 'reservations.restaurantId', 'restaurants.id')
-                .select('reservations.id', 'reservations.name', 'reservations.date', 'restaurants.name as restaurantName');
-              if (search) query = query.where('reservations.name', 'like', `%${search}%`);
-              if (searchDate) query = query.where('reservations.date', searchDate);
-              result = await query;
-              break;
-            case 'update_reservation':
-              const { id: upId, restaurantName: upRestName, name: upName, date: upDate } = call.args as any;
-              const restToUpdate = await db('restaurants').where('name', 'like', `%${upRestName}%`).first();
-              if (!restToUpdate) {
-                result = { error: `Restaurante no encontrado con el nombre "${upRestName}"` };
-              } else {
-                await db('reservations').where({ id: upId }).update({ restaurantId: restToUpdate.id, name: upName, date: upDate });
-                result = { message: 'Reserva actualizada correctamente' };
-              }
-              break;
-            case 'delete_reservation':
-              const { id: delId } = call.args as any;
-              await db('reservations').where({ id: delId }).del();
-              result = { message: `Reserva #${delId} eliminada` };
-              break;
-          }
-        } catch (dbErr) {
-          console.error('DB Error in tool call:', dbErr);
-          result = { error: 'Error al acceder a la base de datos' };
-        }
-
-        toolResponses.push({
-          functionResponse: {
-            name: call.name,
-            response: { result },
-            id: call.id
-          }
-        });
-      }
-
-      // Send tool responses back to model to get final text
-      const finalResponse = await ai.models.generateContent({
-        model,
-        contents: [
-          { role: 'user', parts: [{ text: message }] },
-          { role: 'model', parts: response.candidates?.[0]?.content?.parts || [] },
-          { role: 'user', parts: toolResponses as any }
-        ],
-        config: {
-          systemInstruction: "Eres un asistente de reservas para restaurantes. Responde siempre de forma amable y en español. Si acabas de realizar una acción (como crear una reserva), confirma los detalles al usuario."
-        }
-      });
-      finalResponseText = finalResponse.text;
+    // If no function calls, just return the text response
+    if (!functionCalls || functionCalls.length === 0) {
+      const textResponse = response.text || 'No pude procesar tu solicitud.';
+      console.log('Chat response (no tool calls):', textResponse);
+      res.json({ reply: textResponse });
+      return;
     }
 
-    res.json({ reply: finalResponseText || response.text || 'No pude procesar tu solicitud.' });
+    // Process function calls
+    console.log('Function calls received:', functionCalls.map(c => c.name));
+    const toolResponseParts: any[] = [];
+    for (const call of functionCalls) {
+      let result;
+      try {
+        switch (call.name) {
+          case 'list_restaurants':
+            result = await db('restaurants').select('*');
+            break;
+          case 'create_reservation': {
+            const { restaurantName: restName, name, date } = call.args as any;
+            console.log('create_reservation args:', { restName, name, date });
+            const restaurante = await db('restaurants').where('name', 'like', `%${restName}%`).first();
+            if (!restaurante) {
+              result = { error: `Restaurante no encontrado con el nombre "${restName}"` };
+            } else {
+              const [id] = await db('reservations').insert({ restaurantId: restaurante.id, name, date });
+              result = { message: `Reserva confirmada para ${name} en ${restaurante.name} el ${date}`, id };
+            }
+            break;
+          }
+          case 'list_reservations': {
+            const { search, date: searchDate } = call.args as any;
+            let query = db('reservations').join('restaurants', 'reservations.restaurantId', 'restaurants.id')
+              .select('reservations.id', 'reservations.name', 'reservations.date', 'restaurants.name as restaurantName');
+            if (search) query = query.where('reservations.name', 'like', `%${search}%`);
+            if (searchDate) query = query.where('reservations.date', searchDate);
+            result = await query;
+            break;
+          }
+          case 'update_reservation': {
+            const { id: upId, restaurantName: upRestName, name: upName, date: upDate } = call.args as any;
+            const restToUpdate = await db('restaurants').where('name', 'like', `%${upRestName}%`).first();
+            if (!restToUpdate) {
+              result = { error: `Restaurante no encontrado con el nombre "${upRestName}"` };
+            } else {
+              await db('reservations').where({ id: upId }).update({ restaurantId: restToUpdate.id, name: upName, date: upDate });
+              result = { message: 'Reserva actualizada correctamente' };
+            }
+            break;
+          }
+          case 'delete_reservation': {
+            const { id: delId } = call.args as any;
+            await db('reservations').where({ id: delId }).del();
+            result = { message: `Reserva #${delId} eliminada` };
+            break;
+          }
+        }
+      } catch (dbErr) {
+        console.error('DB Error in tool call:', dbErr);
+        result = { error: 'Error al acceder a la base de datos' };
+      }
+
+      console.log(`Tool ${call.name} result:`, JSON.stringify(result));
+      toolResponseParts.push({
+        functionResponse: {
+          name: call.name,
+          response: { result }
+        }
+      });
+    }
+
+    // Send tool responses back to model to get final text
+    const modelParts = response.candidates?.[0]?.content?.parts || [];
+    const finalResponse = await ai.models.generateContent({
+      model,
+      contents: [
+        { role: 'user', parts: [{ text: message }] },
+        { role: 'model', parts: modelParts },
+        { role: 'user', parts: toolResponseParts }
+      ],
+      config: {
+        systemInstruction: "Eres un asistente de reservas para restaurantes. Responde siempre de forma amable y en español. Si acabas de realizar una acción (como crear una reserva), confirma los detalles al usuario."
+      }
+    });
+
+    const finalText = finalResponse.text || 'Acción realizada correctamente.';
+    console.log('Final response text:', finalText);
+    res.json({ reply: finalText });
   } catch (err: any) {
     console.error('Gemini API Error:', err);
     res.status(500).json({ error: 'Error en el chat con IA: ' + (err.message || 'Error desconocido') });
