@@ -10,7 +10,8 @@ const linkedUsers = new Map<number, { userId: number; name: string; role: string
 
 // Refresh token helper via Firebase REST API
 async function getFirebaseToken(email: string, password: string): Promise<string> {
-  const apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBraCqcecRb3w1C7LlBIX-GCMao4-Crdnc';
+  const apiKey = process.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) throw new Error('VITE_FIREBASE_API_KEY no está definida en el .env');
   const res = await axios.post(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
     { email, password, returnSecureToken: true }
