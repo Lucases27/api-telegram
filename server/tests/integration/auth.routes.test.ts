@@ -1,36 +1,41 @@
 import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import request from 'supertest';
-import express from 'express';
 import Knex from 'knex';
 
-// Mock firebase-admin before any imports that depend on it
-jest.mock('firebase-admin', () => ({
-  apps: [],
-  auth: () => ({
-    verifyIdToken: jest.fn(async (token: string) => {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      return { uid: payload.uid, email: payload.email };
-    }),
-  }),
-  initializeApp: jest.fn(),
-  credential: { cert: jest.fn() },
-}));
-
-// Use an in-memory SQLite DB for testing
+// Create testDb first (unstable_mockModule doesn't hoist, so order matters here)
 const testDb = Knex({
   client: 'better-sqlite3',
   connection: { filename: ':memory:' },
   useNullAsDefault: true,
 });
 
-// Override the db module to use test DB
-jest.mock('../../src/db.ts', () => ({ default: testDb }));
+// Mock firebase-admin - no hoisting with unstable_mockModule
+jest.unstable_mockModule('firebase-admin', () => ({
+  default: {
+    apps: [],
+    auth: () => ({
+      verifyIdToken: jest.fn(async (token: string) => {
+        const payload = JSON.parse(Buffer.from(token, 'base64').toString());
+        return { uid: payload.uid, email: payload.email };
+      }),
+    }),
+    initializeApp: jest.fn(),
+    credential: { cert: jest.fn() },
+  },
+}));
+
+// Override the db module to use testDb (defined above, no hoisting issue)
+jest.unstable_mockModule('../../src/db.ts', () => ({
+  default: testDb,
+}));
 
 function createTestToken(uid: string, email: string): string {
   return Buffer.from(JSON.stringify({ uid, email })).toString('base64');
 }
 
-// Import after mocks are set
+// Dynamic imports AFTER mocks are registered
+import request from 'supertest';
+import express from 'express';
+
 const { registerUser, getMe } = await import('../../api/controllers/auth.controller.ts');
 const { authMiddleware } = await import('../../src/middleware/auth.middleware.ts');
 

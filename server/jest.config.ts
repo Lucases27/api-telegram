@@ -5,21 +5,21 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^(\\.{1,2}/.*)\\.ts$': '$1',
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       useESM: true,
       tsconfig: {
         module: 'ESNext',
-        moduleResolution: 'bundler',
+        moduleResolution: 'node',
         target: 'ES2022',
-        allowImportingTsExtensions: false,
-        noEmit: false,
+        esModuleInterop: true,
+        allowImportingTsExtensions: true,
+        noEmit: true,
       }
     }]
   },
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: [],
   testMatch: ['**/tests/**/*.test.ts'],
   testPathIgnorePatterns: ['/node_modules/'],
 };

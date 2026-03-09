@@ -1,34 +1,43 @@
 import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import request from 'supertest';
-import express from 'express';
 import Knex from 'knex';
 
-jest.mock('firebase-admin', () => ({
-  apps: [],
-  auth: () => ({
-    verifyIdToken: jest.fn(async (token: string) => {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      return { uid: payload.uid, email: payload.email };
-    }),
-  }),
-  initializeApp: jest.fn(),
-  credential: { cert: jest.fn() },
-}));
-
+// Create testDb before any mocks (unstable_mockModule doesn't hoist, so order matters)
 const testDb = Knex({
   client: 'better-sqlite3',
   connection: { filename: ':memory:' },
   useNullAsDefault: true,
 });
 
-jest.mock('../../src/db.ts', () => ({ default: testDb }));
+// Mock firebase-admin (not hoisted, runs in order)
+jest.unstable_mockModule('firebase-admin', () => ({
+  default: {
+    apps: [],
+    auth: () => ({
+      verifyIdToken: jest.fn(async (token: string) => {
+        const payload = JSON.parse(Buffer.from(token, 'base64').toString());
+        return { uid: payload.uid, email: payload.email };
+      }),
+    }),
+    initializeApp: jest.fn(),
+    credential: { cert: jest.fn() },
+  },
+}));
+
+// Mock db, testDb is already defined above
+jest.unstable_mockModule('../../src/db.ts', () => ({
+  default: testDb,
+}));
+
+// Dynamic imports AFTER mocks are registered
+import request from 'supertest';
+import express from 'express';
+
+const { getReservations, createReservation, deleteReservation } = await import('../../api/controllers/reservation.controller.ts');
+const { authMiddleware } = await import('../../src/middleware/auth.middleware.ts');
 
 function createTestToken(uid: string, email: string): string {
   return Buffer.from(JSON.stringify({ uid, email })).toString('base64');
 }
-
-const { getReservations, createReservation, deleteReservation } = await import('../../api/controllers/reservation.controller.ts');
-const { authMiddleware } = await import('../../src/middleware/auth.middleware.ts');
 
 const app = express();
 app.use(express.json());
