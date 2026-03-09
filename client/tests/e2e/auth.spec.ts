@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { E2E_EMAIL, E2E_PASSWORD, E2E_NAME } from './test-credentials';
 
-// These tests assume a test user is pre-registered in Firebase.
-// Replace these with real credentials for your Firebase project.
-const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'testuser@example.com';
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'testpassword123';
-const NEW_EMAIL = `e2e-${Date.now()}@example.com`;
-const NEW_PASSWORD = 'test1234';
-const NEW_NAME = 'Test E2E User';
+// NEW_EMAIL is unique per run so we don't clash with the shared test user
+const NEW_EMAIL = `e2e-new-${Date.now()}@testuser.com`;
+const NEW_PASSWORD = 'Test12345678!';
+const NEW_NAME = 'Nuevo E2E User';
 
 test.describe('Autenticación E2E', () => {
   test('1. Protección de ruta: usuario no autenticado es redirigido a /login', async ({ page }) => {
@@ -22,16 +20,17 @@ test.describe('Autenticación E2E', () => {
     await page.click('button[type="submit"]');
     // After register, should redirect to dashboard
     await expect(page).toHaveURL('/', { timeout: 10000 });
-    await expect(page.locator('h1')).toContainText('Dashboard');
+    // Use 'main h1' to avoid matching the Navbar h1 (GourmetBot)
+    await expect(page.locator('main h1').first()).toContainText('Dashboard');
   });
 
   test('3. Login con credenciales válidas redirige al dashboard', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[type="email"]', NEW_EMAIL);
-    await page.fill('input[type="password"]', NEW_PASSWORD);
+    await page.fill('input[type="email"]', E2E_EMAIL);
+    await page.fill('input[type="password"]', E2E_PASSWORD);
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL('/', { timeout: 10000 });
-    await expect(page.locator('h1')).toContainText('Dashboard');
+    await expect(page.locator('main h1').first()).toContainText('Dashboard');
   });
 
   test('4. Login con credenciales inválidas muestra mensaje de error', async ({ page }) => {

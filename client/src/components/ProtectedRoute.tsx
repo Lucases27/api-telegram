@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { firebaseUser, loading } = useAuth();
+  const { firebaseUser, appUser, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,7 +17,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!firebaseUser) {
+  // Redirect if not authenticated in Firebase OR if registration in DB was not completed
+  if (!firebaseUser || !appUser) {
     return <Navigate to="/login" replace />;
   }
 

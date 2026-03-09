@@ -34,7 +34,12 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     res.status(201).json(newUser);
   } catch (err: any) {
     console.error('Register error:', err);
-    res.status(401).json({ error: 'Token inválido' });
+    // If it's a Firebase token error, return 401. Otherwise 500.
+    if (err?.errorInfo || err?.code?.startsWith?.('auth/')) {
+      res.status(401).json({ error: 'Token inválido o expirado' });
+    } else {
+      res.status(500).json({ error: 'Error interno al registrar el usuario' });
+    }
   }
 };
 

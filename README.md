@@ -17,9 +17,10 @@ El proyecto obedece al patrón de **Arquitectura Separada** (Frontend y Backend 
 ## 🗄️ Elecciones Técnicas
 - **Base de Datos:** SQLite (Knex) por su simplicidad de configuración. Base de datos separada en memoria (`:memory:`) para los tests de integración.
 - **Testing:** Jest + ts-jest + Supertest para tests unitarios e integración. Playwright para tests E2E.
-  - **¿Por qué Jest?**: Ecosistema maduro, excelente soporte de mocking (especialmente `jest.mock`) y coexiste sin conflictos con TypeScript.
+  - **¿Por qué Jest?**: Ecosistema maduro, excelente soporte de mocking y coexiste sin conflictos con TypeScript.
   - **¿Por qué Playwright?**: Más rápido y estable que Cypress para proyectos TypeScript modernos.
-- **Firebase mockeado:** En los tests unitarios e integración, `firebase-admin` se mockea con `jest.mock('firebase-admin')`. Los tokens fake se generan codificando un JSON en base64, que el mock decodifica igual que `verifyIdToken`.
+  - **Base de datos de testing:** Los tests de integración usan una instancia SQLite en memoria (`:memory:`) inicializada con `beforeAll` (crea tablas y seed) y destruida con `afterAll`. Esto garantiza aislamiento total de la DB de desarrollo.
+  - **Firebase mockeado:** Dado que el proyecto usa ESM (`"type": "module"`), se usa `jest.unstable_mockModule('firebase-admin', ...)` (que no se hoistea, a diferencia de `jest.mock`). Los tokens fake se generan codificando un objeto `{ uid, email }` en base64, que el mock decodifica igual que `verifyIdToken`. Esto permite testear todos los flujos de auth sin llamadas reales a Firebase.
 
 ## 🔐 Configuración de Firebase Console
 
