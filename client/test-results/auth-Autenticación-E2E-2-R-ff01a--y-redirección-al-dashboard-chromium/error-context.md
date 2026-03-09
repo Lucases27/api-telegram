@@ -1,0 +1,66 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e12]:
+        - heading "GourmetBot" [level=1] [ref=e13]
+        - paragraph [ref=e14]: Gestión de Reservas
+    - generic [ref=e15]:
+      - link "Dashboard" [ref=e16] [cursor=pointer]:
+        - /url: /
+        - img [ref=e17]
+        - generic [ref=e22]: Dashboard
+      - link "Reservas" [ref=e24] [cursor=pointer]:
+        - /url: /reservations
+        - img [ref=e25]
+        - generic [ref=e27]: Reservas
+      - link "Búsqueda" [ref=e28] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e29]
+        - generic [ref=e32]: Búsqueda
+      - link "Chat IA" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - generic [ref=e36]: Chat IA
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - img [ref=e41]
+          - generic [ref=e44]:
+            - paragraph [ref=e45]: Test E2E User
+            - paragraph [ref=e46]: e2e-1773076188187@example.com
+        - generic [ref=e47]:
+          - img [ref=e48]
+          - generic [ref=e50]: Customer
+      - button "Cerrar sesión" [ref=e51]:
+        - img [ref=e52]
+        - text: Cerrar sesión
+  - main [ref=e55]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - heading "Dashboard Overview" [level=1] [ref=e59]
+        - paragraph [ref=e60]: Bienvenido al sistema de gestión de reservas
+      - generic [ref=e61]:
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - paragraph [ref=e65]: Total Reservas
+            - heading "0" [level=3] [ref=e66]
+          - img [ref=e68]
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - paragraph [ref=e73]: Reservas Hoy
+            - heading "0" [level=3] [ref=e74]
+          - img [ref=e76]
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - paragraph [ref=e82]: Restaurantes Activos
+            - heading "3" [level=3] [ref=e83]
+          - img [ref=e85]
+      - generic [ref=e91]:
+        - heading "Asistente IA Disponible" [level=2] [ref=e92]
+        - paragraph [ref=e93]: Prueba nuestro chatbot impulsado por Gemini. Puedes gestionar reservas usando lenguaje natural, tal como lo harías con un asistente humano.
+        - button "Probar Chat IA" [ref=e94]
+```

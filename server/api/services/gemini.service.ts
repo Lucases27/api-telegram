@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import db from '../../src/db.ts';
+import { AuthUser } from '../../src/middleware/auth.middleware.ts';
 
 const tools: FunctionDeclaration[] = [
   {
@@ -58,7 +59,7 @@ const tools: FunctionDeclaration[] = [
   }
 ];
 
-export const processChatMessage = async (message: string): Promise<string> => {
+export const processChatMessage = async (message: string, user?: AuthUser): Promise<string> => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'undefined' || apiKey.length < 10) {
     throw new Error('Configuración de IA no disponible o clave de API inválida en el servidor');
@@ -66,11 +67,27 @@ export const processChatMessage = async (message: string): Promise<string> => {
 
   const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
   const model = "gemini-2.5-flash";
+
+  // Build system instruction with user context
+  const today = new Date().toISOString().split('T')[0];
+  let systemInstruction = `Eres un asistente de reservas para restaurantes. La fecha actual es: ${today}. `;
+  
+  if (user) {
+    systemInstruction += `El usuario autenticado es "${user.name}" (ID: ${user.id}, email: ${user.email}, rol: ${user.role}). `;
+    if (user.role === 'customer') {
+      systemInstruction += `Como usuario "customer", SOLO puede gestionar SUS PROPIAS reservas (userId = ${user.id}). Al listar o buscar reservas, SIEMPRE filtra por userId = ${user.id}. Si intenta acceder a reservas de otro usuario, rechaza cortésmente y explica que solo puede ver las propias. `;
+    } else if (user.role === 'admin') {
+      systemInstruction += `Como "admin", puede gestionar TODAS las reservas del sistema sin restricciones. `;
+    }
+  }
+  
+  systemInstruction += `Responde siempre de forma amable y en español. Si falta información para una reserva (como la fecha o el nombre), pídela.`;
+
   const response = await ai.models.generateContent({
     model,
     contents: message,
     config: {
-      systemInstruction: "Eres un asistente de reservas para restaurantes. Puedes listar restaurantes, crear, consultar, editar y eliminar reservas. Usa las herramientas proporcionadas para interactuar con la base de datos. Responde siempre de forma amable y en español. Si falta información para una reserva (como la fecha o el nombre), pídela. La fecha actual es: " + new Date().toISOString().split('T')[0],
+      systemInstruction,
       tools: [{ functionDeclarations: tools }]
     }
   });
@@ -95,7 +112,8 @@ export const processChatMessage = async (message: string): Promise<string> => {
           if (!restaurante) {
             result = { error: `Restaurante no encontrado con el nombre "${restName}"` };
           } else {
-            const [id] = await db('reservations').insert({ restaurantId: restaurante.id, name, date });
+            const userId = user?.id ?? null;
+            const [id] = await db('reservations').insert({ restaurantId: restaurante.id, name, date, userId });
             result = { message: `Reserva confirmada para ${name} en ${restaurante.name} el ${date}`, id };
           }
           break;
@@ -103,7 +121,11 @@ export const processChatMessage = async (message: string): Promise<string> => {
         case 'list_reservations': {
           const { search, date: searchDate } = call.args as any;
           let query = db('reservations').join('restaurants', 'reservations.restaurantId', 'restaurants.id')
-            .select('reservations.id', 'reservations.name', 'reservations.date', 'restaurants.name as restaurantName');
+            .select('reservations.id', 'reservations.name', 'reservations.date', 'restaurants.name as restaurantName', 'reservations.userId');
+          // Enforce ownership for customers
+          if (user?.role === 'customer') {
+            query = query.where('reservations.userId', user.id);
+          }
           if (search) query = query.where('reservations.name', 'like', `%${search}%`);
           if (searchDate) query = query.where('reservations.date', searchDate);
           result = await query;
@@ -111,6 +133,11 @@ export const processChatMessage = async (message: string): Promise<string> => {
         }
         case 'update_reservation': {
           const { id: upId, restaurantName: upRestName, name: upName, date: upDate } = call.args as any;
+          const reservaToUpdate = await db('reservations').where({ id: upId }).first();
+          if (!reservaToUpdate) { result = { error: `Reserva #${upId} no encontrada` }; break; }
+          if (user?.role === 'customer' && reservaToUpdate.userId !== user.id) {
+            result = { error: 'No tenés permiso para modificar esa reserva' }; break;
+          }
           const restToUpdate = await db('restaurants').where('name', 'like', `%${upRestName}%`).first();
           if (!restToUpdate) {
             result = { error: `Restaurante no encontrado con el nombre "${upRestName}"` };
@@ -122,6 +149,11 @@ export const processChatMessage = async (message: string): Promise<string> => {
         }
         case 'delete_reservation': {
           const { id: delId } = call.args as any;
+          const reservaToDel = await db('reservations').where({ id: delId }).first();
+          if (!reservaToDel) { result = { error: `Reserva #${delId} no encontrada` }; break; }
+          if (user?.role === 'customer' && reservaToDel.userId !== user.id) {
+            result = { error: 'No tenés permiso para eliminar esa reserva' }; break;
+          }
           await db('reservations').where({ id: delId }).del();
           result = { message: `Reserva #${delId} eliminada` };
           break;
@@ -149,7 +181,7 @@ export const processChatMessage = async (message: string): Promise<string> => {
       { role: 'user', parts: toolResponseParts }
     ],
     config: {
-      systemInstruction: "Eres un asistente de reservas para restaurantes. Responde siempre de forma amable y en español. Si acabas de realizar una acción (como crear una reserva), confirma los detalles al usuario."
+      systemInstruction: `Eres un asistente de reservas para restaurantes. Responde siempre de forma amable y en español. Si acabas de realizar una acción (como crear una reserva), confirma los detalles al usuario.`
     }
   });
 

@@ -9,7 +9,7 @@ export const handleChat = async (req: Request, res: Response): Promise<void> => 
   }
 
   try {
-    const reply = await processChatMessage(message);
+    const reply = await processChatMessage(message, req.user);
     res.json({ reply });
   } catch (err: any) {
     console.error('Gemini API Error:', err);

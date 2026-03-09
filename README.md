@@ -1,86 +1,122 @@
-# Asistente de Reservas con IA y Bot de Telegram (Ejercicio 3 Completo)
+# Asistente de Reservas con IA, Firebase Auth y Bot de Telegram (Ejercicio 4)
 
-Este proyecto es un sistema de gestión de reservas para restaurantes que integra una interfaz web moderna y separada del backend, un bot de Telegram y un asistente de inteligencia artificial (Gemini) con capacidades RAG para la manipulación de base de datos en lenguaje natural.
+Este proyecto extiende el Ejercicio 3 incorporando autenticación con Firebase Authentication, roles de usuario (admin/customer), y testing automatizado (unitarios, integración y E2E).
 
 ## 🚀 Arquitectura del Proyecto
 
 El proyecto obedece al patrón de **Arquitectura Separada** (Frontend y Backend independientes):
 
-- **`/client` (Frontend)**: 
-  - Desarrollado con el entorno React, Vite y estilos modernos de Tailwind CSS.
-  - Implementa React Router para navegación sin recarga.
-  - Rutas construidas: `/` (Dashboard), `/reservations` (CRUD completo), `/search` (Búsqueda y Filtros), `/chat` (Interfaz gráfica de Asistente IA).
+- **`/client` (Frontend)**: React + Vite + Tailwind CSS. Rutas: `/login`, `/register`, `/` (Dashboard), `/reservations`, `/search`, `/chat`. Rutas protegidas con `ProtectedRoute`.
   
-- **`/server` (Backend)**: 
-  - Desarrollado con Node.js, Express, y base de datos relacional SQLite utilizando el Query Builder Knex (`better-sqlite3`).
-  - La base de datos guarda Restaurantes y Reservas persistentes de acuerdo al Ejercicio 2.
-  - Expone todos los Endpoints REST necesarios (`GET /restaurants`, `POST`, `PUT`, `DELETE`, etc).
-  - Ejecuta de forma simultánea un Bot de Telegram con `Telegraf`.
+- **`/server` (Backend)**: Node.js + Express + SQLite (Knex/better-sqlite3). Expone endpoints REST. Verifica tokens de Firebase con Admin SDK. Ejecuta simultáneamente el Bot de Telegram.
 
-- **🧠 IA (RAG & Function Calling)**:
-  - Integración bajo el endpoint `POST /api/chat` usando el modelo de **Google Gemini** (`@google/genai`).
-  - Se le brinda al LLM capacidades de Tool Use/Function Calling. Cuando el usuario envía una instrucción en lenguaje natural (Ej: "Cancela la reserva #8"), Gemini la enruta a las herramientas integradas del modelo que a su vez se conectan directamente con la base de datos SQL. 
-  - La IA está enlazada y accesible tanto desde la interfaz web en `/chat` como desde el canal del Bot de Telegram usando el comando `/chat`.
+- **🔐 Autenticación**: Firebase Authentication (Email/Password). El frontend usa el SDK cliente para autenticar directamente contra Firebase. El backend usa Firebase Admin SDK para verificar el ID Token en cada request.
+
+- **🧠 IA (RAG & Function Calling)**: Google Gemini con Function Calling. El contexto del usuario autenticado (rol, id) se inyecta en el system prompt para respetar los permisos.
 
 ## 🗄️ Elecciones Técnicas
-- **Base de Datos:** Se eligió SQLite (a través de Knex) porque no requiere dependencias de infraestructura locales ni configuraciones avanzadas para ejecutar el proyecto, simplificando el testeo y mantenimiento.
-- **LLM y RAG Estratégico:** Se eligió `gemini-3-flash-preview` por su velocidad de respuesta para aplicaciones de chat interactivo y su alta precisión al hacer *Function Calling*. La estrategia elegida de RAG no inyecta el contexto SQL completo por anticipado, en su lugar registra las herramientas (`create_reservation`, `list_reservations`, etc.) de forma directa para que Gemini descifre la intención e invoque funciones y retorne respuestas certeras y concretas al frontend o al usuario de Telegram.
+- **Base de Datos:** SQLite (Knex) por su simplicidad de configuración. Base de datos separada en memoria (`:memory:`) para los tests de integración.
+- **Testing:** Jest + ts-jest + Supertest para tests unitarios e integración. Playwright para tests E2E.
+  - **¿Por qué Jest?**: Ecosistema maduro, excelente soporte de mocking (especialmente `jest.mock`) y coexiste sin conflictos con TypeScript.
+  - **¿Por qué Playwright?**: Más rápido y estable que Cypress para proyectos TypeScript modernos.
+- **Firebase mockeado:** En los tests unitarios e integración, `firebase-admin` se mockea con `jest.mock('firebase-admin')`. Los tokens fake se generan codificando un JSON en base64, que el mock decodifica igual que `verifyIdToken`.
 
-## 🛠️ Requisitos del Entorno
+## 🔐 Configuración de Firebase Console
 
-- Node.js (v18 o superior)
-- Una clave de API de Google Gemini Studio
-- Un token de Bot de Telegram (obtenido vía @BotFather)
+1. Crear un proyecto en [Firebase Console](https://console.firebase.google.com/).
+2. Habilitar **Email/Password** en Authentication → Sign-in method.
+3. Obtener la configuración web del proyecto (Settings → General → Your apps → Web app).
+4. Generar una **clave de cuenta de servicio** (Settings → Service accounts → Generate new private key). Colocar el JSON en la raíz del proyecto (nunca subir al repositorio).
 
-## 📦 Instalación y Configuración
+## 📦 Variables de Entorno
 
-El proyecto está separado, por lo que debes iniciar las dependencias y los procesos de ambas partes:
+### `server/.env`
+```env
+GEMINI_API_KEY=tu_gemini_key
+BOT_TOKEN=tu_bot_token
+PORT=3001
+# Opcional: Pegar el JSON de la service account como string (alternativa al archivo)
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+```
 
-### 1. Configurar y encender el Backend (`/server`)
+### `client/.env`
+```env
+VITE_FIREBASE_API_KEY=tu_api_key
+VITE_FIREBASE_AUTH_DOMAIN=tu-proyecto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=tu-proyecto-id
+VITE_FIREBASE_STORAGE_BUCKET=tu-proyecto.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+```
 
-1. Navega a `server/` e instala las dependencias:
-   ```bash
-   cd server
-   npm install
-   ```
-2. Crea un archivo `.env` basado en `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-3. Configura tus claves maestras en el `.env` (`GEMINI_API_KEY` y `BOT_TOKEN`).
-4. Genera la carpeta `data` e inicializa las tablas / el seed (El script de inicio lo hace automáticamente, pero si deseas hacerlo a mano):
-   ```bash
-   npm run setup:db
-   ```
-5. Inicia el servidor. Se levantará la API REST y también el oyente del Bot de Telegram de forma interactuable en el puerto 3001:
-   ```bash
-   npm run dev
-   ```
+## 🛠️ Instalación y Configuración
 
-### 2. Configurar y encender el Frontend (`/client`)
+### Backend (`/server`)
+```bash
+cd server
+npm install
+# Inicializar la BD (crea tablas users, restaurants, reservations + seed)
+npx tsx src/migrate.ts
+npx tsx src/seed.ts
+npm run dev
+```
 
-Abre una nueva terminal y ejecuta:
+### Frontend (`/client`)
+```bash
+cd client
+npm install
+npm run dev
+```
 
-1. Navega a la carpeta cliente e instala las dependencias:
-   ```bash
-   cd client
-   npm install
-   ```
-2. Inicia el ecosistema en vivo del frontend (El Vite-server apuntará automáticamente por defecto a sus puertos libres como 5173 o 5174):
-   ```bash
-   npm run dev
-   ```
+> El proxy de Vite redirige automáticamente `/api/*` al backend en el puerto 3001.
 
-*(El proxy hacia el backend ya está diseñado en la configuración).*
+## 👤 Creación del usuario Admin
+
+Crear el usuario en Firebase Authentication Console o desde el formulario de registro en la web, luego ejecutar en SQLite:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'tu@admin.com';
+```
 
 ## 🤖 Uso del Bot de Telegram
 
-Busca tu bot asociado al Token que integraste en Telegram y usa los siguientes comandos:
-- `/start`: Conoce al bot y su menú.
-- `/restaurants`: Lista los restaurantes existentes.
-- `/reserve <restaurantId> <YYYY-MM-DD> <tu_nombre>`: Comando estático de creación.
-- `/reservations`: Lista tus citas reservadas globalmente.
-- `/chat <mensaje>`: Comando mágico que invoca de forma inteligente al LLM de backend para interactuar con tus intenciones, desde listar algo hasta modificar o borrar por ti.
+Busca tu bot en Telegram y usa:
+- `/start`: Menú de bienvenida.
+- `/vincular <email> <password>`: Vincula tu cuenta Firebase con Telegram. Tus comandos quedarán autenticados. (**Opción A** elegida por ser más directa e inmediata; la Opción B es más segura pero requiere infraestructura adicional de códigos temporales).
+- `/desvincular`: Cierra sesión en Telegram.
+- `/restaurants`: Lista restaurantes (requiere vinculación).
+- `/reservations`: Lista tus reservas (respeta el rol).
+- `/reserve <restaurantId> <YYYY-MM-DD> <nombre>`: Crea una reserva.
+- `/chat <mensaje>`: Habla con el asistente IA con tu identidad autenticada.
+
+## 🧪 Ejecución de Tests
+
+### Tests unitarios (22 tests)
+```bash
+cd server
+npm run test:unit
+```
+
+### Tests de integración (10 tests, BD en memoria)
+```bash
+cd server
+npm run test:integration
+```
+
+### Todos los tests con coverage
+```bash
+cd server
+npm run test:coverage
+```
+
+### Tests E2E con Playwright (8 tests)
+> Requiere que el backend (`server: npm run dev`) y el frontend (`client: npm run dev`) estén en ejecución.
+```bash
+cd client
+npm run test:e2e
+```
+
+> Para los tests E2E, configurar las variables `E2E_TEST_EMAIL` y `E2E_TEST_PASSWORD` con un usuario de testing pre-registrado en Firebase.
 
 ## 📄 Licencia
 
