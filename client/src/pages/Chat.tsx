@@ -1,9 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from 'react';
+import { api } from '../services/api';
 import { Send, Bot, User, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const API_URL = 'http://localhost:3001/api';
 
 type Message = {
   id: string;
@@ -49,7 +47,7 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}/chat`, { message: userMsg.text });
+      const res = await api.post('/chat', { message: userMsg.text });
       
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),

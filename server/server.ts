@@ -16,40 +16,7 @@ async function startServer() {
   console.log('GEMINI_API_KEY is', process.env.GEMINI_API_KEY ? 'DEFINED' : 'UNDEFINED');
   console.log('BOT_TOKEN is', process.env.BOT_TOKEN ? 'DEFINED' : 'UNDEFINED');
 
-  // Run migrations
-  try {
-    console.log('Ejecutando migraciones...');
-    const existsRestaurants = await db.schema.hasTable('restaurants');
-    if (!existsRestaurants) {
-      await db.schema.createTable('restaurants', (table) => {
-        table.increments('id').primary();
-        table.string('name').notNullable();
-      });
-      console.log('Tabla restaurants creada');
-      
-      // Seed restaurants
-      await db('restaurants').insert([
-        { name: 'Restaurante A' },
-        { name: 'Restaurante B' },
-        { name: 'Restaurante C' }
-      ]);
-      console.log('Restaurantes insertados');
-    }
 
-    const existsReservations = await db.schema.hasTable('reservations');
-    if (!existsReservations) {
-      await db.schema.createTable('reservations', (table) => {
-        table.increments('id').primary();
-        table.integer('restaurantId').unsigned().references('id').inTable('restaurants').onDelete('CASCADE');
-        table.string('name').notNullable();
-        table.date('date').notNullable();
-        table.timestamp('createdAt').defaultTo(db.fn.now());
-      });
-      console.log('Tabla reservations creada');
-    }
-  } catch (err) {
-    console.error('Error en la base de datos:', err);
-  }
 
   // API routes
   app.use(apiApp);

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 import { Search as SearchIcon, Calendar as CalendarIcon } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const API_URL = 'http://localhost:3001/api';
 
 const Search = () => {
   const [reservations, setReservations] = useState<any[]>([]);
@@ -19,7 +17,7 @@ const Search = () => {
       if (filters.search) params.append('search', filters.search);
       if (filters.date) params.append('date', filters.date);
       
-      const res = await axios.get(`${API_URL}/reservations?${params.toString()}`);
+      const res = await api.get(`/reservations?${params.toString()}`);
       setReservations(res.data);
     } catch (err) {
       console.error(err);

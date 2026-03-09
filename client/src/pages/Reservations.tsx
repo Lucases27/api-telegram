@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const API_URL = 'http://localhost:3001/api';
 
 const Reservations = () => {
   const [reservations, setReservations] = useState<any[]>([]);
@@ -20,8 +18,8 @@ const Reservations = () => {
   const fetchData = async () => {
     try {
       const [resRes, restRes] = await Promise.all([
-        axios.get(`${API_URL}/reservations`),
-        axios.get(`${API_URL}/restaurants`),
+        api.get('/reservations'),
+        api.get('/restaurants'),
       ]);
       setReservations(resRes.data);
       setRestaurants(restRes.data);
@@ -37,9 +35,9 @@ const Reservations = () => {
     setError('');
     try {
       if (formData.id) {
-        await axios.put(`${API_URL}/reservations/${formData.id}`, formData);
+        await api.put(`/reservations/${formData.id}`, formData);
       } else {
-        await axios.post(`${API_URL}/reservations`, formData);
+        await api.post('/reservations', formData);
       }
       setIsModalOpen(false);
       fetchData();
@@ -51,7 +49,7 @@ const Reservations = () => {
   const handleDelete = async (id: number) => {
     if (confirm('¿Estás seguro de que deseas eliminar esta reserva?')) {
       try {
-        await axios.delete(`${API_URL}/reservations/${id}`);
+        await api.delete(`/reservations/${id}`);
         fetchData();
       } catch (err) {
         console.error(err);

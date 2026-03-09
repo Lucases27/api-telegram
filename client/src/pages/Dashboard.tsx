@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { api } from '../services/api';
 import { CalendarDays, Users, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
-
-const API_URL = 'http://localhost:3001/api';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -17,8 +15,8 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         const [reservationsRes, restaurantsRes] = await Promise.all([
-          axios.get(`${API_URL}/reservations`),
-          axios.get(`${API_URL}/restaurants`),
+          api.get('/reservations'),
+          api.get('/restaurants'),
         ]);
 
         const reservations = reservationsRes.data;
